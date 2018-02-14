@@ -37,18 +37,16 @@ impl Service for Proxy {
             (&Post, "/post") => {
                 let url = format!("http://httpbin.org/post").parse().unwrap();
                 let handle = self.handle.clone();
+                let client = client::Client::new(&handle);
 
-                let f = req.body().concat2().and_then(move |body_buffer| {
-                    let mut request = client::Request::new(Method::Post, url);
+                let mut request = client::Request::new(Method::Post, url);
+                let length = req.headers().get::<ContentLength>().unwrap().clone();
 
-                    request.headers_mut().set(ContentLength(body_buffer.len() as u64));
-                    request.set_body(body_buffer);
+                request.headers_mut().set(length);
 
-                    let client = client::Client::new(&handle);
-                    client.request(request).and_then(|res| {
-                        Ok(res)
-                    })
-                });
+                request.set_body(req.body());
+                let f = client.request(request);
+
                 Box::new(f)
             },
             _ => {
